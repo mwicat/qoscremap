@@ -2,7 +2,7 @@
 
 """Main module."""
 
-import math
+import logging
 
 from PySide2.QtGui import *
 from PySide2.QtWidgets import *
@@ -10,6 +10,9 @@ from PySide2.QtCore import *
 
 from pythonosc import osc_server
 from pythonosc.dispatcher import Dispatcher
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_vbox_layout():
@@ -97,6 +100,11 @@ class ControlWidget(QWidget):
         self.parameters_grid = ParametersGrid(rows, cols)
         vbox.addWidget(self.parameters_grid)
 
+        self.bypass_button = QPushButton("Bypass")
+        self.bypass_button.setCheckable(True)
+
+        vbox.addWidget(self.bypass_button)
+
         self.learn_button = QPushButton("Learn")
         self.learn_button.setCheckable(True)
 
@@ -109,6 +117,9 @@ class ControlWidget(QWidget):
 
     def setLearnActive(self, active):
         self.learn_button.setChecked(active)
+
+    def setBypassActive(self, active):
+        self.bypass_button.setChecked(active)
 
     def getParameter(self, num):
         return self.parameters_grid.parameters[num-1]
@@ -140,6 +151,9 @@ class MainWindow(QMainWindow):
             param.setValue(0)
 
         addr = cfg_ctl_osc['remote_ip'], cfg_ctl_osc['remote_port']
+        logger.info('Initializing controller osc server on {}:{}'.format(
+            cfg_ctl_osc['remote_ip'], cfg_ctl_osc['remote_port']
+        ))
         self.osc_server_thread = OSCServerThread(addr)
         self.osc_server_thread.message_received.connect(self.on_message)
 
@@ -148,6 +162,8 @@ class MainWindow(QMainWindow):
     def on_message(self, addr, args):
         if addr == '/fx/learn':
             self.ctl_widget.setLearnActive(bool(args[0]))
+        if addr == '/fx/bypass':
+            self.ctl_widget.setBypassActive(bool(args[0]))
         elif addr == '/fx/name':
             self.ctl_widget.setControlName(args[0])
         elif addr.startswith('/fx/param/'):
